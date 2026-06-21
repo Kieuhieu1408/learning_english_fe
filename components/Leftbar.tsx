@@ -4,22 +4,42 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type TopicOffline } from '../lib/db';
 import { queueLocalChange } from '../lib/syncManager';
-import { Folder, FolderPlus, FileText, FilePlus, ChevronDown, ChevronRight, Settings, LogOut, RefreshCw } from 'lucide-react';
+import { Folder, FolderPlus, FileText, FilePlus, ChevronDown, ChevronRight, Settings, LogOut, RefreshCw, GraduationCap } from 'lucide-react';
 
 interface LeftbarProps {
   onSelectNote: (noteId: string) => void;
   activeNoteId: string | null;
   onSync: () => void;
   syncStatus: string;
+  onOpenSettings?: () => void;
+  onOpenTest?: () => void;
 }
 
-export default function Leftbar({ onSelectNote, activeNoteId, onSync, syncStatus }: LeftbarProps) {
+export default function Leftbar({ onSelectNote, activeNoteId, onSync, syncStatus, onOpenSettings, onOpenTest }: LeftbarProps) {
   const topics = useLiveQuery(() => db.topics.toArray()) || [];
   const notes = useLiveQuery(() => db.notes.toArray()) || [];
   
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
   const [newTopicName, setNewTopicName] = useState('');
   const [showAddTopic, setShowAddTopic] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await db.transaction('rw', [db.topics, db.notes, db.words, db.syncQueue, db.syncMetadata], async () => {
+        await db.topics.clear();
+        await db.notes.clear();
+        await db.words.clear();
+        await db.syncQueue.clear();
+        await db.syncMetadata.clear();
+      });
+    } catch (err) {
+      console.error('Failed to clear local database on logout:', err);
+    }
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('username');
+    window.location.reload();
+  };
 
   const toggleTopic = (topicId: string) => {
     setExpandedTopics(prev => ({ ...prev, [topicId]: !prev[topicId] }));
@@ -149,20 +169,47 @@ export default function Leftbar({ onSelectNote, activeNoteId, onSync, syncStatus
       </div>
 
       {/* Footer User Status */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
-            U
+      <div className="p-3 border-t border-slate-800 bg-slate-900/50 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
+              U
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white">Learner</p>
+              <p className="text-[10px] text-slate-500">Offline-first Mode</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-white">Learner</p>
-            <p className="text-[10px] text-slate-500">Offline-first Mode</p>
+          <div className="flex items-center gap-1">
+            {onOpenTest && (
+              <button 
+                onClick={onOpenTest}
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors"
+                title="Start Quiz"
+              >
+                <GraduationCap className="w-4 h-4" />
+              </button>
+            )}
+            {onOpenSettings && (
+              <button 
+                onClick={onOpenSettings}
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors"
+                title="AI Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+            <button 
+              onClick={handleLogout}
+              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-rose-400 transition-colors"
+              title="Log out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
-        <button className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-rose-400 transition-colors">
-          <LogOut className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
 }
+

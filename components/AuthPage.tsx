@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Lock, Mail, User, GraduationCap, ShieldAlert } from 'lucide-react';
 
+import { loginApi, registerApi } from '../services/login';
+
 interface AuthPageProps {
   onSuccess: () => void;
 }
@@ -15,30 +17,28 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  console.log('[AuthPage] Rendered, mode:', mode);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[AuthPage] handleSubmit triggered. username:', username);
     setError('');
     setLoading(true);
 
-    const url = mode === 'login' ? 'http://localhost:8080/api/auth/login' : 'http://localhost:8080/api/auth/register';
     const body = mode === 'login' ? { username, password } : { username, email, password };
 
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const data = mode === 'login' 
+        ? await loginApi(body)
+        : await registerApi(body);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Authentication failed');
-      }
+      console.log('[AuthPage] Authentication successful. Response data:', data);
 
-      const data = await res.json();
       localStorage.setItem('jwt_token', data.token);
       localStorage.setItem('user_role', data.role);
       localStorage.setItem('username', data.username);
+
+      console.log('[AuthPage] Stored token in localStorage:', localStorage.getItem('jwt_token'));
 
       onSuccess();
     } catch (err: any) {

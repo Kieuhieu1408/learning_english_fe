@@ -7,7 +7,7 @@ import { queueLocalChange } from '../lib/syncManager';
 import { CheckCircle2, XCircle, ArrowRight, BookOpen, GraduationCap, Volume2 } from 'lucide-react';
 
 export default function QuizEngine() {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0] || '';
   const dueWords = useLiveQuery(() => 
     db.words.filter(w => w.nextReviewAt <= todayStr).toArray()
   ) || [];
@@ -18,7 +18,7 @@ export default function QuizEngine() {
   const [quizMode, setQuizMode] = useState<'flashcard' | 'essay'>('flashcard');
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
 
-  const activeWord = dueWords[currentIndex];
+  const activeWord = dueWords[currentIndex]!;
 
   const handleGrade = async (quality: number) => {
     if (!activeWord) return;
@@ -39,7 +39,7 @@ export default function QuizEngine() {
 
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + newInterval);
-    const nextReviewStr = nextDate.toISOString().split('T')[0];
+    const nextReviewStr = nextDate.toISOString().split('T')[0] || '';
 
     const updatedWord: WordOffline = {
       ...activeWord,

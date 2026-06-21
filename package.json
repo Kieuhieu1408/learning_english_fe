@@ -17,6 +17,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.0",
+    "@langchain/google-genai": "^2.2.0",
+    "@langchain/openai": "^1.5.1",
     "@t3-oss/env-nextjs": "^0.13.11",
     "clsx": "^2.1.1",
     "dexie": "^4.0.8",

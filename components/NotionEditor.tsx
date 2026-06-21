@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { db, type NoteOffline, type WordOffline } from '../lib/db';
 import { queueLocalChange } from '../lib/syncManager';
+import { translateWord } from '../lib/aiClient';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Sparkles, Save, Trash2, HelpCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, Save, Trash2, HelpCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 
 interface NotionEditorProps {
   noteId: string | null;
@@ -12,7 +13,7 @@ interface NotionEditorProps {
 }
 
 export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps) {
-  const note = useLiveQuery(() => (noteId ? db.notes.get(noteId) : Promise.resolve(null)), [noteId]);
+  const note = useLiveQuery(() => (noteId ? db.notes.get(noteId) : Promise.resolve(null)), [noteId]) as NoteOffline | null | undefined;
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -20,6 +21,7 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
   const [popoverCoords, setPopoverCoords] = useState<{ x: number; y: number } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -76,21 +78,11 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
     if (!selectedText) return;
     setAiLoading(true);
     setPopoverCoords(null);
+    setAiResult(null);
+    setAiError(null);
 
     try {
-      const token = localStorage.getItem('jwt_token');
-      const response = await fetch('http://localhost:8080/api/ai/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify([selectedText])
-      });
-
-      if (!response.ok) throw new Error('API failed');
-      const data = await response.json();
-      const result = data[0];
+      const result = await translateWord(selectedText);
 
       setAiResult(result);
 
@@ -108,7 +100,7 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
         correctStreak: 0,
         difficulty: 0.3,
         intervalDays: 1,
-        nextReviewAt: new Date().toISOString().split('T')[0],
+        nextReviewAt: new Date().toISOString().split('T')[0] || '',
         failedEssayStreak: 0,
         version: 1,
         createdAtMs: Date.now(),
@@ -117,35 +109,9 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
 
       await db.words.put(newWord);
       await queueLocalChange('word', newWord.id, 'CREATE', newWord);
-    } catch (err) {
-      console.error('Translation failed, setting default mock translation', err);
-      // Fallback fallback if connection is offline
-      const mockWord: WordOffline = {
-        id: crypto.randomUUID(),
-        noteId: noteId,
-        text: selectedText,
-        translation: 'Nghĩa giả lập (Offline)',
-        partOfSpeech: 'Noun',
-        ipa: '/offline-ipa/',
-        exampleContext: 'This is a mock offline context sentence.',
-        exampleTranslation: 'Đây là câu ví dụ giả lập offline.',
-        status: 'NEW',
-        correctStreak: 0,
-        difficulty: 0.3,
-        intervalDays: 1,
-        nextReviewAt: new Date().toISOString().split('T')[0],
-        failedEssayStreak: 0,
-        version: 1,
-        createdAtMs: Date.now(),
-        updatedAtMs: Date.now()
-      };
-      await db.words.put(mockWord);
-      await queueLocalChange('word', mockWord.id, 'CREATE', mockWord);
-      setAiResult({
-        text: selectedText,
-        translation: 'Nghĩa giả lập (Offline)',
-        ipa: '/offline-ipa/',
-      });
+    } catch (err: any) {
+      console.error('Translation failed:', err);
+      setAiError(err.message || 'Translation failed. Please make sure your AI configuration is set up properly.');
     } finally {
       setAiLoading(false);
     }
@@ -245,6 +211,27 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
             </p>
             <p className="text-xs text-slate-400">{aiResult.translation}</p>
             {aiResult.ipa && <p className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded w-max">{aiResult.ipa}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* AI Error Alert Popover */}
+      {aiError && (
+        <div className="fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-rose-500/30 rounded-xl p-4 shadow-2xl space-y-2 z-50 animate-in slide-in-from-bottom duration-300">
+          <div className="flex justify-between items-start">
+            <h3 className="text-sm font-bold text-rose-400 flex items-center gap-1.5">
+              <ShieldAlert className="w-4 h-4 text-rose-400" />
+              Translation Failed
+            </h3>
+            <button 
+              onClick={() => setAiError(null)} 
+              className="text-xs text-slate-500 hover:text-slate-300"
+            >
+              Close
+            </button>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-300 leading-relaxed">{aiError}</p>
           </div>
         </div>
       )}
