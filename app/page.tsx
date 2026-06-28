@@ -1,68 +1,53 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import LoginPage from './views/LoginPage';
-import MainPage from './views/MainPage';
-import KeySettingPage from './views/KeySettingPage';
-import TestPage from './views/TestPage';
-import ResultPage from './views/ResultPage';
+import React, { useEffect, useState } from "react";
 
-type ActiveView = 'login' | 'main' | 'settings' | 'test' | 'results';
+import KeySettingPage from "./views/KeySettingPage";
+import LoginPage from "./views/LoginPage";
+import MainPage from "./views/MainPage";
+import ResultPage from "./views/ResultPage";
+import TestPage from "./views/TestPage";
+
+type ActiveView = "login" | "main" | "settings" | "test" | "results";
 
 export default function Home() {
-  const [activeView, setActiveView] = useState<ActiveView>('login');
+  const [activeView, setActiveView] = useState<ActiveView>("login");
 
   // Check JWT token on mount to decide initial view
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
+    const token = localStorage.getItem("jwt_token");
     if (token) {
-      setActiveView('main');
+      setActiveView("main");
     }
   }, []);
 
   switch (activeView) {
-    case 'login':
-      return (
-        <LoginPage
-          onSuccess={() => setActiveView('main')}
-        />
-      );
+    case "login":
+      return <LoginPage onSuccess={() => setActiveView("main")} />;
 
-    case 'main':
+    case "main":
       return (
         <MainPage
-          onOpenSettings={() => setActiveView('settings')}
-          onOpenTest={() => setActiveView('test')}
+          onOpenSettings={() => setActiveView("settings")}
+          onOpenTest={() => setActiveView("test")}
         />
       );
 
-    case 'settings':
-      return (
-        <KeySettingPage
-          onBack={() => setActiveView('main')}
-        />
-      );
+    case "settings":
+      return <KeySettingPage onBack={() => setActiveView("main")} />;
 
-    case 'test':
+    case "test":
       return (
         <TestPage
-          onBack={() => setActiveView('main')}
-          onViewResults={() => setActiveView('results')}
+          onBack={() => setActiveView("main")}
+          onViewResults={() => setActiveView("results")}
         />
       );
 
-    case 'results':
-      return (
-        <ResultPage
-          onBack={() => setActiveView('main')}
-        />
-      );
+    case "results":
+      return <ResultPage onBack={() => setActiveView("main")} />;
 
     default:
-      return (
-        <LoginPage
-          onSuccess={() => setActiveView('main')}
-        />
-      );
+      return <LoginPage onSuccess={() => setActiveView("main")} />;
   }
 }

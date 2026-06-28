@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   type StringObject = Record<string, string>;
   type NumberObject = Record<string, number>;

@@ -1,73 +1,81 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Lock, Mail, User, GraduationCap, ShieldAlert } from 'lucide-react';
+import React, { useState } from "react";
 
-import { loginApi, registerApi } from '../services/login';
+import { GraduationCap, Lock, Mail, ShieldAlert, User } from "lucide-react";
+
+import { loginApi, registerApi } from "../services/login";
 
 interface AuthPageProps {
   onSuccess: () => void;
 }
 
 export default function AuthPage({ onSuccess }: AuthPageProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  console.log('[AuthPage] Rendered, mode:', mode);
+  console.log("[AuthPage] Rendered, mode:", mode);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[AuthPage] handleSubmit triggered. username:', username);
-    setError('');
+    console.log("[AuthPage] handleSubmit triggered. username:", username);
+    setError("");
     setLoading(true);
 
-    const body = mode === 'login' ? { username, password } : { username, email, password };
+    const body =
+      mode === "login" ? { username, password } : { username, email, password };
 
     try {
-      const data = mode === 'login' 
-        ? await loginApi(body)
-        : await registerApi(body);
+      const data =
+        mode === "login" ? await loginApi(body) : await registerApi(body);
 
-      console.log('[AuthPage] Authentication successful. Response data:', data);
+      console.log("[AuthPage] Authentication successful. Response data:", data);
 
-      localStorage.setItem('jwt_token', data.token);
-      localStorage.setItem('user_role', data.role);
-      localStorage.setItem('username', data.username);
+      localStorage.setItem("jwt_token", data.token);
+      localStorage.setItem("user_role", data.role);
+      localStorage.setItem("username", data.username);
 
-      console.log('[AuthPage] Stored token in localStorage:', localStorage.getItem('jwt_token'));
+      console.log(
+        "[AuthPage] Stored token in localStorage:",
+        localStorage.getItem("jwt_token"),
+      );
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Connection to server refused. Make sure backend is running.');
+      setError(
+        err.message ||
+          "Connection to server refused. Make sure backend is running.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
-        
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
         {/* Title */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-indigo-600/10 text-indigo-400 rounded-xl flex items-center justify-center mx-auto">
-            <GraduationCap className="w-6 h-6" />
+        <div className="space-y-2 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-400">
+            <GraduationCap className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-wide">
-            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+          <h1 className="text-2xl font-extrabold tracking-wide text-white">
+            {mode === "login" ? "Welcome Back" : "Create Account"}
           </h1>
           <p className="text-xs text-slate-500">
-            {mode === 'login' ? 'Sign in to access your offline-first English cards' : 'Start mastering vocabulary spaced repetition'}
+            {mode === "login" ?
+              "Sign in to access your offline-first English cards"
+            : "Start mastering vocabulary spaced repetition"}
           </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
+            <ShieldAlert className="h-4 w-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -75,31 +83,35 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Username</label>
+            <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+              Username
+            </label>
             <div className="relative">
-              <User className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-              <input 
-                type="text" 
+              <User className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
+              <input
+                type="text"
                 placeholder="Type your username..."
                 value={username}
-                onChange={e => setUsername(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-850 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                onChange={(e) => setUsername(e.target.value)}
+                className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
                 required
               />
             </div>
           </div>
 
-          {mode === 'register' && (
+          {mode === "register" && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
+              <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                Email Address
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                <input 
-                  type="email" 
+                <Mail className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
+                <input
+                  type="email"
                   placeholder="name@example.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
                   required
                 />
               </div>
@@ -107,36 +119,44 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Password</label>
+            <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+              Password
+            </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-              <input 
-                type="password" 
+              <Lock className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
+              <input
+                type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-850 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                onChange={(e) => setPassword(e.target.value)}
+                className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
                 required
               />
             </div>
           </div>
 
-          <button 
+          <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/10 transition-colors"
+            className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/10 transition-colors hover:bg-indigo-500 disabled:bg-indigo-800"
           >
-            {loading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
+            {loading ?
+              "Processing..."
+            : mode === "login" ?
+              "Sign In"
+            : "Sign Up"}
           </button>
         </form>
 
         {/* Toggle */}
-        <div className="text-center pt-2">
-          <button 
-            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+        <div className="pt-2 text-center">
+          <button
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
+            className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
           >
-            {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            {mode === "login" ?
+              "Don't have an account? Sign up"
+            : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

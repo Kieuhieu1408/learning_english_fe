@@ -1,24 +1,44 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { db, type NoteOffline, type WordOffline } from '../lib/db';
-import { queueLocalChange } from '../lib/syncManager';
-import { translateWord } from '../lib/aiClient';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { Sparkles, Save, Trash2, HelpCircle, RefreshCw, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+
+import { useLiveQuery } from "dexie-react-hooks";
+import {
+  HelpCircle,
+  RefreshCw,
+  Save,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+
+import type { NoteOffline, WordOffline } from "../lib/db";
+
+import { translateWord } from "../lib/aiClient";
+import { db } from "../lib/db";
+import { queueLocalChange } from "../lib/syncManager";
 
 interface NotionEditorProps {
   noteId: string | null;
   onDeleteNote: (id: string) => void;
 }
 
-export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps) {
-  const note = useLiveQuery(() => (noteId ? db.notes.get(noteId) : Promise.resolve(null)), [noteId]) as NoteOffline | null | undefined;
-  
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [selectedText, setSelectedText] = useState('');
-  const [popoverCoords, setPopoverCoords] = useState<{ x: number; y: number } | null>(null);
+export default function NotionEditor({
+  noteId,
+  onDeleteNote,
+}: NotionEditorProps) {
+  const note = useLiveQuery(
+    () => (noteId ? db.notes.get(noteId) : Promise.resolve(null)),
+    [noteId],
+  ) as NoteOffline | null | undefined;
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [selectedText, setSelectedText] = useState("");
+  const [popoverCoords, setPopoverCoords] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -30,8 +50,8 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
       setTitle(note.title);
       setContent(note.content);
     } else {
-      setTitle('');
-      setContent('');
+      setTitle("");
+      setContent("");
     }
   }, [note]);
 
@@ -41,7 +61,7 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
     const updatedNote: NoteOffline = {
       id: noteId,
       topicId: note?.topicId || null,
-      title: title.trim() || 'Untitled Note',
+      title: title.trim() || "Untitled Note",
       content: content,
       version: (note?.version || 0) + 1,
       createdAtMs: note?.createdAtMs || Date.now(),
@@ -49,7 +69,7 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
     };
 
     await db.notes.put(updatedNote);
-    await queueLocalChange('note', noteId, 'UPDATE', updatedNote);
+    await queueLocalChange("note", noteId, "UPDATE", updatedNote);
   };
 
   const handleTextSelection = () => {
@@ -91,27 +111,30 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
         id: crypto.randomUUID(),
         noteId: noteId,
         text: result.text || selectedText,
-        translation: result.translation || '',
-        partOfSpeech: result.partOfSpeech || 'Noun',
-        ipa: result.ipa || '',
-        exampleContext: result.exampleContext || '',
-        exampleTranslation: result.exampleTranslation || '',
-        status: 'NEW',
+        translation: result.translation || "",
+        partOfSpeech: result.partOfSpeech || "Noun",
+        ipa: result.ipa || "",
+        exampleContext: result.exampleContext || "",
+        exampleTranslation: result.exampleTranslation || "",
+        status: "NEW",
         correctStreak: 0,
         difficulty: 0.3,
         intervalDays: 1,
-        nextReviewAt: new Date().toISOString().split('T')[0] || '',
+        nextReviewAt: new Date().toISOString().split("T")[0] || "",
         failedEssayStreak: 0,
         version: 1,
         createdAtMs: Date.now(),
-        updatedAtMs: Date.now()
+        updatedAtMs: Date.now(),
       };
 
       await db.words.put(newWord);
-      await queueLocalChange('word', newWord.id, 'CREATE', newWord);
+      await queueLocalChange("word", newWord.id, "CREATE", newWord);
     } catch (err: any) {
-      console.error('Translation failed:', err);
-      setAiError(err.message || 'Translation failed. Please make sure your AI configuration is set up properly.');
+      console.error("Translation failed:", err);
+      setAiError(
+        err.message ||
+          "Translation failed. Please make sure your AI configuration is set up properly.",
+      );
     } finally {
       setAiLoading(false);
     }
@@ -119,72 +142,74 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
 
   if (!noteId) {
     return (
-      <div className="flex-1 bg-slate-950 flex flex-col items-center justify-center text-slate-500">
-        <HelpCircle className="w-12 h-12 mb-2 text-slate-700" />
-        <p className="text-sm">Select or create a note on the sidebar to get started</p>
+      <div className="flex flex-1 flex-col items-center justify-center bg-transparent p-8 text-center text-slate-500 dark:text-slate-400">
+        <HelpCircle className="mb-2 h-12 w-12 text-slate-400 dark:text-slate-600" />
+        <p className="text-sm font-medium">
+          Select or create a note on the sidebar to get started
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-slate-950 text-slate-100 flex flex-col relative">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-transparent text-slate-900 dark:text-slate-100">
       {/* Editor Controls */}
-      <div className="p-4 border-b border-slate-900 flex justify-between items-center bg-slate-950/80 backdrop-blur">
+      <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/40 p-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/40">
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-semibold uppercase tracking-wide">
+          <span className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-xs font-bold tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
             Notion Editor
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={handleSave} 
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-semibold text-white transition-all shadow-lg shadow-indigo-600/10"
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-500"
           >
-            <Save className="w-3.5 h-3.5" />
+            <Save className="h-3.5 w-3.5" />
             Save changes
           </button>
-          <button 
-            onClick={() => onDeleteNote(noteId)} 
-            className="p-1.5 bg-slate-900 hover:bg-rose-950/30 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-lg transition-colors"
+          <button
+            onClick={() => onDeleteNote(noteId)}
+            className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition-colors hover:bg-rose-50 hover:text-rose-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
             title="Delete this note"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Editor Inputs */}
-      <div className="flex-1 p-6 max-w-3xl mx-auto w-full flex flex-col space-y-4 overflow-y-auto">
-        <input 
-          type="text" 
-          placeholder="Ghi tiêu đề ở đây..." 
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col space-y-6 overflow-y-auto p-8">
+        <input
+          type="text"
+          placeholder="Ghi tiêu đề ở đây..."
           value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="bg-transparent border-none text-3xl font-extrabold text-white placeholder-slate-800 focus:outline-none w-full"
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full border-none bg-transparent text-3xl font-extrabold text-slate-900 placeholder-slate-400 transition-colors focus:outline-none dark:text-white dark:placeholder-slate-700"
         />
 
-        <textarea 
+        <textarea
           ref={editorRef}
-          placeholder="Hãy viết nội dung bài đọc hoặc ghi chú tại đây. Bôi đen bất kỳ từ vựng nào để kích hoạt trợ lý dịch thuật AI dịch nghĩa, điền IPA và tạo câu ngữ cảnh học từ..." 
+          placeholder="Hãy viết nội dung bài đọc hoặc ghi chú tại đây. Bôi đen bất kỳ từ vựng nào để kích hoạt trợ lý dịch thuật AI dịch nghĩa, điền IPA và tạo câu ngữ cảnh học từ..."
           value={content}
-          onChange={e => setContent(e.target.value)}
+          onChange={(e) => setContent(e.target.value)}
           onMouseUp={handleTextSelection}
           onKeyUp={handleTextSelection}
-          className="bg-transparent border-none text-slate-300 placeholder-slate-800 focus:outline-none w-full resize-none flex-1 leading-relaxed text-sm"
+          className="w-full flex-1 resize-none border-none bg-transparent text-base leading-relaxed text-slate-800 placeholder-slate-400 transition-colors focus:outline-none dark:text-slate-300 dark:placeholder-slate-600"
         />
       </div>
 
       {/* AI Popover Trigger */}
       {popoverCoords && (
-        <div 
+        <div
           style={{ left: `${popoverCoords.x}px`, top: `${popoverCoords.y}px` }}
-          className="absolute bg-slate-900 border border-slate-800 text-white rounded-lg p-1.5 shadow-xl flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-100 z-50"
+          className="animate-in fade-in zoom-in-95 absolute z-50 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-900 shadow-2xl duration-100 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
         >
-          <button 
+          <button
             onClick={handleTranslateWord}
-            className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-semibold"
+            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-500"
           >
-            <Sparkles className="w-3 h-3 text-amber-300" />
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
             Translate with AI
           </button>
         </div>
@@ -192,55 +217,68 @@ export default function NotionEditor({ noteId, onDeleteNote }: NotionEditorProps
 
       {/* AI Result Alert Popover */}
       {aiResult && (
-        <div className="fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl space-y-2 z-50 animate-in slide-in-from-bottom duration-300">
-          <div className="flex justify-between items-start">
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-300" />
+        <div className="animate-in slide-in-from-bottom fixed right-6 bottom-6 z-50 max-w-sm space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl duration-300 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-start justify-between">
+            <h3 className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+              <Sparkles className="h-4 w-4 text-amber-500 dark:text-amber-300" />
               Saved to Dictionary
             </h3>
-            <button 
-              onClick={() => setAiResult(null)} 
-              className="text-xs text-slate-500 hover:text-slate-300"
+            <button
+              onClick={() => setAiResult(null)}
+              className="text-xs text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
               Close
             </button>
           </div>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-indigo-400">
-              {aiResult.text} <span className="text-[10px] text-slate-500">({aiResult.partOfSpeech})</span>
+          <div className="space-y-1.5">
+            <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              {aiResult.text}{" "}
+              <span className="text-[11px] font-normal text-slate-500">
+                ({aiResult.partOfSpeech})
+              </span>
             </p>
-            <p className="text-xs text-slate-400">{aiResult.translation}</p>
-            {aiResult.ipa && <p className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded w-max">{aiResult.ipa}</p>}
+            <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              {aiResult.translation}
+            </p>
+            {aiResult.ipa && (
+              <p className="w-max rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                {aiResult.ipa}
+              </p>
+            )}
           </div>
         </div>
       )}
 
       {/* AI Error Alert Popover */}
       {aiError && (
-        <div className="fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-rose-500/30 rounded-xl p-4 shadow-2xl space-y-2 z-50 animate-in slide-in-from-bottom duration-300">
-          <div className="flex justify-between items-start">
-            <h3 className="text-sm font-bold text-rose-400 flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
+        <div className="animate-in slide-in-from-bottom fixed right-6 bottom-6 z-50 max-w-sm space-y-3 rounded-2xl border border-rose-200 bg-white p-5 shadow-2xl duration-300 dark:border-rose-500/30 dark:bg-slate-900">
+          <div className="flex items-start justify-between">
+            <h3 className="flex items-center gap-1.5 text-sm font-bold text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-4 w-4 text-rose-500 dark:text-rose-400" />
               Translation Failed
             </h3>
-            <button 
-              onClick={() => setAiError(null)} 
-              className="text-xs text-slate-500 hover:text-slate-300"
+            <button
+              onClick={() => setAiError(null)}
+              className="text-xs text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
               Close
             </button>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs text-slate-300 leading-relaxed">{aiError}</p>
+          <div className="space-y-1.5">
+            <p className="text-xs leading-relaxed font-medium text-slate-700 dark:text-slate-300">
+              {aiError}
+            </p>
           </div>
         </div>
       )}
 
       {aiLoading && (
-        <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px] flex items-center justify-center z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 flex items-center gap-3">
-            <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
-            <span className="text-xs font-medium text-slate-200">AI is generating vocabulary card...</span>
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/10 backdrop-blur-[2px] dark:bg-slate-950/20">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <RefreshCw className="h-4 w-4 animate-spin text-indigo-600 dark:text-indigo-500" />
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              AI is generating vocabulary card...
+            </span>
           </div>
         </div>
       )}

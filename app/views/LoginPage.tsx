@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import AuthPage from '../../components/AuthPage';
+import AuthPage from "../../components/AuthPage";
 
 interface LoginPageProps {
   onSuccess: () => void;

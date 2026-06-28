@@ -1,4 +1,6 @@
-import Dexie, { type Table } from 'dexie';
+import Dexie from "dexie";
+
+import type { Table } from "dexie";
 
 export interface TopicOffline {
   id: string; // UUID
@@ -26,7 +28,7 @@ export interface WordOffline {
   ipa: string;
   exampleContext: string;
   exampleTranslation: string;
-  status: 'NEW' | 'LEARNING' | 'TEMP_REMEMBERED' | 'MASTERED';
+  status: "NEW" | "LEARNING" | "TEMP_REMEMBERED" | "MASTERED";
   correctStreak: number;
   difficulty: number;
   intervalDays: number;
@@ -39,9 +41,9 @@ export interface WordOffline {
 
 export interface SyncQueueItem {
   id?: number; // Auto-incremented primary key
-  entityType: 'topic' | 'note' | 'word';
+  entityType: "topic" | "note" | "word";
   entityId: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  action: "CREATE" | "UPDATE" | "DELETE";
   payload: string; // JSON string of the entity
   timestamp: number;
 }
@@ -51,21 +53,35 @@ export interface SyncMetadata {
   value: string;
 }
 
+export interface AppConfig {
+  key: string; // e.g., 'themeColor'
+  value: string;
+}
+
 export class AppOfflineDatabase extends Dexie {
   topics!: Table<TopicOffline, string>;
   notes!: Table<NoteOffline, string>;
   words!: Table<WordOffline, string>;
   syncQueue!: Table<SyncQueueItem, number>;
   syncMetadata!: Table<SyncMetadata, string>;
+  configs!: Table<AppConfig, string>;
 
   constructor() {
-    super('EnglishLearningOfflineDB');
+    super("EnglishLearningOfflineDB");
     this.version(1).stores({
-      topics: 'id, name, updatedAtMs',
-      notes: 'id, topicId, title, updatedAtMs',
-      words: 'id, noteId, text, nextReviewAt, status, updatedAtMs',
-      syncQueue: '++id, entityType, entityId, action, timestamp',
-      syncMetadata: 'key',
+      topics: "id, name, updatedAtMs",
+      notes: "id, topicId, title, updatedAtMs",
+      words: "id, noteId, text, nextReviewAt, status, updatedAtMs",
+      syncQueue: "++id, entityType, entityId, action, timestamp",
+      syncMetadata: "key",
+    });
+    this.version(2).stores({
+      topics: "id, name, updatedAtMs",
+      notes: "id, topicId, title, updatedAtMs",
+      words: "id, noteId, text, nextReviewAt, status, updatedAtMs",
+      syncQueue: "++id, entityType, entityId, action, timestamp",
+      syncMetadata: "key",
+      configs: "key",
     });
   }
 }

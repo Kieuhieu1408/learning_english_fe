@@ -18,10 +18,12 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "react/no-unescaped-entities": "off",
+      "react-hooks/set-state-in-effect": "off",
 
       "@next/next/no-page-custom-font": "off",
 
       "@typescript-eslint/array-type": "off",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/consistent-type-definitions": "off",
       "@typescript-eslint/consistent-type-imports": [
         "warn",
