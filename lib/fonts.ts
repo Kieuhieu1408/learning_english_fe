@@ -1,24 +1,26 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Newsreader } from "next/font/google";
 
 /* -----------------------------------------------------------------------------------------------
- * Geist Fonts (https://vercel.com/font / https://www.npmjs.com/package/geist)
+ * Google Fonts: Inter (Sans-serif) & Newsreader (Editorial Serif)
  * -----------------------------------------------------------------------------------------------*/
 
-export const fontSans = Geist({
-  variable: "--font-sans",
+export const fontSans = Inter({
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
+
+export const fontSerif = Newsreader({
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-newsreader",
+  weight: ["400", "500"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
 export const fontMono = Geist_Mono({
+  subsets: ["latin"],
   variable: "--font-mono",
+  display: "swap",
 });
-
-/* -----------------------------------------------------------------------------------------------
- * Google Fonts
- * -----------------------------------------------------------------------------------------------*/
-
-// ...
-
-/* -----------------------------------------------------------------------------------------------
- * Local Fonts
- * -----------------------------------------------------------------------------------------------*/
-
-// ...

@@ -2,9 +2,11 @@ import { HumanMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOpenAI } from "@langchain/openai";
 
-import type { AiSettings } from "../services/user";
+import type { AiSettings, AITranslateResult, GradeResult } from "~/types";
 
 import { fetchAiSettings } from "../services/user";
+
+export type { AITranslateResult, GradeResult };
 
 let _cachedSettings: AiSettings | null = null;
 
@@ -35,15 +37,6 @@ function createChatModel(provider: string, apiKey: string, modelName: string) {
       model: modelName,
     });
   }
-}
-
-export interface AITranslateResult {
-  text: string;
-  translation: string;
-  partOfSpeech: string;
-  ipa: string;
-  exampleContext: string;
-  exampleTranslation: string;
 }
 
 export async function translateWord(text: string): Promise<AITranslateResult> {
@@ -103,12 +96,6 @@ Return ONLY the JSON object, no markdown, no code blocks, no explanation.`;
       exampleTranslation: "",
     };
   }
-}
-
-export interface GradeResult {
-  correct: boolean;
-  score: number;
-  feedback: string;
 }
 
 export async function gradeQuizAnswer(

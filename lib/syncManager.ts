@@ -1,4 +1,4 @@
-import type { NoteOffline, TopicOffline, WordOffline } from "./db";
+import type { NoteOffline, TopicOffline, WordOffline } from "~/types";
 
 import { fetchRemoteCountersApi, triggerBatchSyncApi } from "../services/sync";
 import { db } from "./db";

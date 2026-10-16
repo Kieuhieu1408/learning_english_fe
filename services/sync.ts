@@ -1,24 +1,19 @@
+import type { BatchSyncRequest, BatchSyncResponse } from "~/types";
+
 import { apiFetch, BASE_URL } from "./config";
 
-export async function fetchRemoteCountersApi(): Promise<any> {
+export type { BatchSyncRequest, BatchSyncResponse };
+
+export async function fetchRemoteCountersApi(): Promise<unknown> {
   const res = await apiFetch(`${BASE_URL}/api/sync/counters`);
   if (!res.ok) throw new Error("Failed to fetch remote counters");
   return res.json();
 }
 
-export interface BatchSyncRequest {
-  topics: any[];
-  notes: any[];
-  words: any[];
-  deletedTopicIds: string[];
-  deletedNoteIds: string[];
-  deletedWordIds: string[];
-}
-
 export async function triggerBatchSyncApi(
   request: BatchSyncRequest,
   idempotencyKey: string,
-): Promise<any> {
+): Promise<BatchSyncResponse> {
   const res = await apiFetch(`${BASE_URL}/api/sync/batch`, {
     method: "POST",
     headers: {
@@ -31,5 +26,5 @@ export async function triggerBatchSyncApi(
     const errText = await res.text().catch(() => "");
     throw new Error(`Sync batch request failed: ${res.status} - ${errText}`);
   }
-  return res.json();
+  return (await res.json()) as BatchSyncResponse;
 }

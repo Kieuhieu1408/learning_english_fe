@@ -8,8 +8,9 @@ import * as fonts from "~/lib/fonts";
 import { cn } from "~/lib/utils";
 
 export const metadata = {
-  title: "Next.js + TypeScript Starter",
-  description: "A starter template for Next.js and TypeScript",
+  title: "margin. — thoughtful english notes",
+  description:
+    "A private, distraction-free space for thoughtful English reading, vocabulary capture, and spaced repetition review.",
 };
 
 const RootLayout: React.FCC = ({ children }) => {
@@ -19,9 +20,8 @@ const RootLayout: React.FCC = ({ children }) => {
       suppressHydrationWarning
       className={cn(Object.values(fonts).map((font) => font.variable))}
     >
-      <body className="min-h-dvh scroll-smooth font-sans antialiased">
+      <body className="min-h-dvh font-sans antialiased">
         <Providers>{children}</Providers>
-
         <TailwindIndicator />
       </body>
     </html>

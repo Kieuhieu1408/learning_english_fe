@@ -2,72 +2,44 @@ import Dexie from "dexie";
 
 import type { Table } from "dexie";
 
-export interface TopicOffline {
-  id: string; // UUID
-  name: string;
-  createdAtMs: number;
-  updatedAtMs: number;
-}
+import type {
+  DexieAppConfig,
+  NoteOffline,
+  ReviewLogOffline,
+  SyncMetadata,
+  SyncQueueItem,
+  TopicOffline,
+  WordContextOffline,
+  WordOffline,
+  WordWithContexts,
+} from "~/types";
 
-export interface NoteOffline {
-  id: string; // UUID
-  topicId: string | null;
-  title: string;
-  content: string;
-  version: number;
-  createdAtMs: number;
-  updatedAtMs: number;
-}
+export type {
+  TopicOffline,
+  NoteOffline,
+  WordContextOffline,
+  WordOffline,
+  WordWithContexts,
+  ReviewLogOffline,
+  SyncQueueItem,
+  SyncMetadata,
+};
 
-export interface WordOffline {
-  id: string; // UUID
-  noteId: string | null;
-  text: string;
-  translation: string;
-  partOfSpeech: string;
-  ipa: string;
-  exampleContext: string;
-  exampleTranslation: string;
-  status: "NEW" | "LEARNING" | "TEMP_REMEMBERED" | "MASTERED";
-  correctStreak: number;
-  difficulty: number;
-  intervalDays: number;
-  nextReviewAt: string; // yyyy-MM-dd
-  failedEssayStreak: number;
-  version: number;
-  createdAtMs: number;
-  updatedAtMs: number;
-}
-
-export interface SyncQueueItem {
-  id?: number; // Auto-incremented primary key
-  entityType: "topic" | "note" | "word";
-  entityId: string;
-  action: "CREATE" | "UPDATE" | "DELETE";
-  payload: string; // JSON string of the entity
-  timestamp: number;
-}
-
-export interface SyncMetadata {
-  key: string; // e.g., 'lastSyncAt', 'dailyWordCount', 'totalWordCount'
-  value: string;
-}
-
-export interface AppConfig {
-  key: string; // e.g., 'themeColor'
-  value: string;
-}
+export type AppConfig = DexieAppConfig;
 
 export class AppOfflineDatabase extends Dexie {
   topics!: Table<TopicOffline, string>;
   notes!: Table<NoteOffline, string>;
   words!: Table<WordOffline, string>;
+  wordContexts!: Table<WordContextOffline, string>;
+  reviewLogs!: Table<ReviewLogOffline, number>;
   syncQueue!: Table<SyncQueueItem, number>;
   syncMetadata!: Table<SyncMetadata, string>;
-  configs!: Table<AppConfig, string>;
+  configs!: Table<DexieAppConfig, string>;
 
   constructor() {
     super("EnglishLearningOfflineDB");
+
     this.version(1).stores({
       topics: "id, name, updatedAtMs",
       notes: "id, topicId, title, updatedAtMs",
@@ -75,6 +47,7 @@ export class AppOfflineDatabase extends Dexie {
       syncQueue: "++id, entityType, entityId, action, timestamp",
       syncMetadata: "key",
     });
+
     this.version(2).stores({
       topics: "id, name, updatedAtMs",
       notes: "id, topicId, title, updatedAtMs",
@@ -83,6 +56,41 @@ export class AppOfflineDatabase extends Dexie {
       syncMetadata: "key",
       configs: "key",
     });
+
+    this.version(3)
+      .stores({
+        topics: "id, name, updatedAtMs",
+        notes: "id, topicId, title, updatedAtMs",
+        words: "id, noteId, text, nextReviewAt, status, updatedAtMs",
+        wordContexts: "id, wordId, noteId, updatedAtMs",
+        reviewLogs: "++id, wordId, isCorrect, reviewedAtMs",
+        syncQueue: "++id, entityType, entityId, action, timestamp",
+        syncMetadata: "key",
+        configs: "key",
+      })
+      .upgrade(async (trans) => {
+        // Migrate existing exampleContexts in words into wordContexts table
+        const wordsTable = trans.table<WordOffline, string>("words");
+        const contextsTable = trans.table<WordContextOffline, string>(
+          "wordContexts",
+        );
+        const existingWords = await wordsTable.toArray();
+        for (const w of existingWords) {
+          if (w.exampleContext) {
+            await contextsTable.put({
+              id: crypto.randomUUID(),
+              wordId: w.id,
+              noteId: w.noteId || null,
+              noteTitle: "Source Note",
+              sentence: w.exampleContext,
+              translation: w.exampleTranslation || "",
+              partOfSpeech: w.partOfSpeech || "word",
+              createdAtMs: w.createdAtMs || Date.now(),
+              updatedAtMs: w.updatedAtMs || Date.now(),
+            });
+          }
+        }
+      });
   }
 }
 

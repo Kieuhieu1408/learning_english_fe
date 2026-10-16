@@ -1,16 +1,13 @@
+import type {
+  AiSettings,
+  UserAppConfig as AppConfig,
+  ModelInfo,
+  ThemeOption,
+} from "~/types";
+
 import { apiFetch, BASE_URL } from "./config";
 
-export interface AiSettings {
-  provider: "deepseek" | "google";
-  apiKey: string;
-  translationModel: string;
-  quizModel: string;
-}
-
-export interface ModelInfo {
-  id: string;
-  name: string;
-}
+export type { AiSettings, ModelInfo, ThemeOption, AppConfig };
 
 export async function fetchAiSettings(): Promise<AiSettings | null> {
   try {
@@ -42,7 +39,9 @@ export async function saveAiSettings(
   });
 
   if (!res.ok) {
-    const errData = (await res.json().catch(() => ({}))) as any;
+    const errData = (await res.json().catch(() => ({}))) as {
+      message?: string;
+    };
     throw new Error(errData.message || "Failed to save AI settings");
   }
 
@@ -56,8 +55,8 @@ export async function testDeepSeekKey(apiKey: string): Promise<ModelInfo[]> {
 
   if (!res.ok) throw new Error("Invalid DeepSeek API key");
 
-  const data = (await res.json()) as any;
-  return (data.data || []).map((m: any) => ({
+  const data = (await res.json()) as { data?: Array<{ id: string }> };
+  return (data.data || []).map((m) => ({
     id: m.id,
     name: m.id,
   }));
@@ -70,25 +69,13 @@ export async function testGeminiKey(apiKey: string): Promise<ModelInfo[]> {
 
   if (!res.ok) throw new Error("Invalid Google Gemini API key");
 
-  const data = (await res.json()) as any;
-  return (data.models || []).map((m: any) => ({
+  const data = (await res.json()) as {
+    models?: Array<{ name: string; displayName?: string }>;
+  };
+  return (data.models || []).map((m) => ({
     id: m.name.replace("models/", ""),
     name: m.displayName || m.name.replace("models/", ""),
   }));
-}
-
-export interface ThemeOption {
-  id: string;
-  name: string;
-  colors: string[];
-  bgClass: string;
-  darkBgClass: string;
-}
-
-export interface AppConfig {
-  themeColor?: string;
-  themeMode?: string;
-  availableThemes?: ThemeOption[];
 }
 
 export async function fetchAppConfig(): Promise<AppConfig | null> {
