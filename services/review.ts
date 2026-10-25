@@ -14,17 +14,36 @@ import { apiFetch, BASE_URL } from "./config";
 
 export type { ReviewCard, ReviewSubmission, ReviewMode };
 
-export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
+export interface DueCardsResult {
+  cards: ReviewCard[];
+  totalDue: number;
+}
+
+export async function fetchDueCardsWithTotalApi(
+  limit = 15,
+): Promise<DueCardsResult> {
   try {
     const res = await apiFetch(`${BASE_URL}/api/review/due?limit=${limit}`);
     if (res.ok) {
-      const serverCards = (await res.json()) as WordWithContexts[];
-      if (Array.isArray(serverCards) && serverCards.length > 0) {
-        return serverCards.map((c) => ({
+      const data = (await res.json()) as any;
+      const rawWords: any[] = Array.isArray(data) ? data : data?.words || [];
+      if (Array.isArray(rawWords) && rawWords.length > 0) {
+        const cards: ReviewCard[] = rawWords.map((c: any) => ({
           ...c,
-          meaning: c.meaning || c.translation,
-          pos: c.pos || c.partOfSpeech,
+          meaning: c.primaryMeaning || c.meaning || c.translation || "",
+          pos: c.partOfSpeech || c.pos || "word",
+          contexts: (c.contexts || []).map((ctx: any) => ({
+            ...ctx,
+            translation: ctx.sentenceTranslation || ctx.translation || "",
+            pos: ctx.partOfSpeech || ctx.pos || "word",
+          })),
         }));
+        const totalDue =
+          typeof data?.totalDue === "number" ? data.totalDue : cards.length;
+        return { cards, totalDue };
+      }
+      if (typeof data?.totalDue === "number" && data.totalDue === 0) {
+        return { cards: [], totalDue: 0 };
       }
     }
   } catch (err) {
@@ -35,10 +54,9 @@ export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
   const todayStr = new Date().toISOString().split("T")[0] ?? "";
   const allWords = await db.words.toArray();
 
-  const dueWords = allWords
+  const allDueWords = allWords
     .filter((w) => !w.nextReviewAt || w.nextReviewAt <= todayStr)
     .sort((a, b) => {
-      // Prioritize LEARNING and NEW over REMEMBERED
       const order: Record<string, number> = {
         LEARNING: 0,
         NEW: 1,
@@ -46,10 +64,12 @@ export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
         MASTERED: 3,
       };
       return (order[a.status] || 0) - (order[b.status] || 0);
-    })
-    .slice(0, limit);
+    });
 
-  // If there are less than limit due words, pad with other words so the user can practice
+  const totalDue = allDueWords.length;
+  const dueWords = allDueWords.slice(0, limit);
+
+  // Pad if needed so user can always practice
   const needed = limit - dueWords.length;
   if (needed > 0) {
     const dueIds = new Set(dueWords.map((w) => w.id));
@@ -67,9 +87,9 @@ export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
     contextMap.set(ctx.wordId, list);
   }
 
-  return dueWords.map((w) => ({
+  const cards = dueWords.map((w) => ({
     ...w,
-    meaning: w.translation,
+    meaning: w.translation || w.meaning,
     pos: w.partOfSpeech,
     contexts:
       contextMap.get(w.id) ||
@@ -90,6 +110,13 @@ export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
         ]
       : []),
   }));
+
+  return { cards, totalDue: totalDue || cards.length };
+}
+
+export async function fetchDueCardsApi(limit = 15): Promise<ReviewCard[]> {
+  const { cards } = await fetchDueCardsWithTotalApi(limit);
+  return cards;
 }
 
 export async function submitReviewCardApi(
@@ -102,7 +129,7 @@ export async function submitReviewCardApi(
       {
         wordId: wordIdOrSub,
         isCorrect: !!isCorrect,
-        quality: isCorrect ? 4 : 1,
+        quality: isCorrect ? 3 : 1,
         mode,
       }
     : wordIdOrSub;
@@ -124,12 +151,16 @@ export async function submitReviewCardApi(
     if (newStreak === 1) {
       newInterval = 1;
     } else if (newStreak === 2) {
-      newInterval = 6;
+      newInterval = 3;
+    } else if (newStreak === 3) {
+      newInterval = 7;
+    } else if (newStreak === 4) {
+      newInterval = 14;
     } else {
       newInterval = Math.max(1, Math.round(newInterval * newDifficulty));
     }
 
-    if (newStreak >= 4 && newInterval >= 14) {
+    if (newStreak >= 5 && newInterval >= 14) {
       newStatus = "MASTERED";
     } else if (newStreak >= 2) {
       newStatus = "TEMP_REMEMBERED";
@@ -162,25 +193,67 @@ export async function submitReviewCardApi(
   const logMode: ReviewMode =
     sub.mode?.toUpperCase().includes("BLANK") ? "FILL_BLANK" : "FLASHCARD";
 
-  // Record review log for progress analytics
+  // Record review log for local analytics
   await db.reviewLogs.put({
     wordId: word.id,
     isCorrect: sub.isCorrect,
-    quality: sub.quality || (sub.isCorrect ? 4 : 1),
+    quality: sub.quality || (sub.isCorrect ? 3 : 1),
     mode: logMode,
     reviewedAtMs: now,
   });
 
   await queueLocalChange("word", word.id, "UPDATE", updatedWord);
 
+  // Call Backend API with exact ReviewSubmitRequest DTO
   try {
+    const eventId = crypto.randomUUID();
+    const qualityVal = sub.quality || (sub.isCorrect ? 3 : 1);
+
     await apiFetch(`${BASE_URL}/api/review/submit`, {
       method: "POST",
-      body: JSON.stringify(sub),
+      body: JSON.stringify({
+        events: [
+          {
+            eventId,
+            wordId: word.id,
+            quality: qualityVal,
+            isCorrect: sub.isCorrect,
+            mode: logMode,
+            reviewedAt: new Date().toISOString(),
+          },
+        ],
+      }),
     });
-  } catch {
-    // Synced via batch
+  } catch (err) {
+    console.warn("submitReviewCardApi online call failed, kept in queue:", err);
   }
 
   return updatedWord;
+}
+
+export async function checkAnswerApi(params: {
+  wordId: string;
+  sentence?: string;
+  typedAnswer: string;
+}): Promise<{
+  outcome: string;
+  isAccepted: boolean;
+  quality: number;
+  feedback: string;
+}> {
+  const res = await apiFetch(`${BASE_URL}/api/review/check-answer`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Check answer API failed: ${res.status}`);
+  }
+
+  return (await res.json()) as {
+    outcome: string;
+    isAccepted: boolean;
+    quality: number;
+    feedback: string;
+  };
 }

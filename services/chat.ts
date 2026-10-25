@@ -5,94 +5,151 @@ import type {
   Conversation,
 } from "~/types";
 
-import { dictionary } from "~/lib/demoData";
-
 import { apiFetch, BASE_URL } from "./config";
 
 export type { ChatMessage, Conversation, ChatSendParams, ChatResponse };
 
-export const initialConversations: Conversation[] = [
-  {
-    id: "attention",
-    title: "Understanding “linger”",
-    messages: [
-      { role: "user", text: "What does linger mean?" },
-      {
-        role: "assistant",
-        text: "Linger /ˈlɪŋ.ɡər/ · verb\n\nNán lại, lưu lại — to stay somewhere longer than expected because you don’t want to leave.\n\nExample: “We lingered over coffee on a quiet Sunday.”\nChúng tôi nán lại bên tách cà phê vào một ngày Chủ nhật yên tĩnh.\n\nTry writing one sentence about a place you’d like to linger.",
-      },
-    ],
-  },
-  {
-    id: "practice",
-    title: "A small vocabulary practice",
-    messages: [
-      { role: "user", text: "Give me a vocabulary exercise." },
-      {
-        role: "assistant",
-        text: "Let’s practice a word in context.\n\n“She likes to ______ her curiosity by reading something new every day.”\n\nHint: nuôi dưỡng, trau dồi. The word starts with c.\n\nSample answer: cultivate.",
-      },
-    ],
-  },
-];
-
-export function sampleReply(text: string): string {
-  const normalized = text.toLowerCase();
-
-  if (normalized.includes("practice") || normalized.includes("exercise")) {
-    return "A little practice, one word at a time.\n\nFill in the blank:\n“We decided to ______ over coffee instead of rushing home.”\n\nHint: nán lại. Think of a word that means staying a little longer.\n\nSample answer: linger.\n\nThis is a prepared learning exercise to enrich your vocabulary.";
+export async function fetchConversationsApi(): Promise<Conversation[]> {
+  try {
+    const res = await apiFetch(`${BASE_URL}/api/chat/conversations`);
+    if (res.ok) {
+      const data = (await res.json()) as any;
+      if (Array.isArray(data)) {
+        return data.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          messages: [],
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("fetchConversationsApi failed:", err);
   }
+  return [];
+}
 
-  const entry = dictionary.find(([word]) =>
-    new RegExp(`\\b${word}\\b`, "i").test(text),
-  );
-
-  if (entry) {
-    return `${entry[0]} ${entry[1]} · ${entry[2]}\n\nVietnamese meaning: ${entry[3]}.\n\nTry finding this word in one of your notes, then write your own sentence with it. Reading it in context helps it stay with you.`;
+export async function fetchMessagesApi(
+  conversationId: string,
+): Promise<ChatMessage[]> {
+  try {
+    const res = await apiFetch(
+      `${BASE_URL}/api/chat/conversations/${conversationId}/messages`,
+    );
+    if (res.ok) {
+      const data = (await res.json()) as any;
+      if (Array.isArray(data)) {
+        return data.map((m: any) => ({
+          role: m.role?.toLowerCase() === "user" ? "user" : "assistant",
+          text: m.content || "",
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("fetchMessagesApi failed:", err);
   }
+  return [];
+}
 
-  if (normalized.includes("attention") || normalized.includes("summar")) {
-    return "The art of paying attention — a reading companion\n\nThe note invites us to slow down and notice ordinary moments. Attention is something we can practice through small, deliberate choices, not a personality trait.\n\nWords to explore: linger, cultivate, deliberate, receptive.\n\nReflection: What is one small thing you noticed today?";
+export async function createConversationApi(
+  title: string,
+  noteId?: string,
+): Promise<{ id: string; title: string }> {
+  const res = await apiFetch(`${BASE_URL}/api/chat/conversations`, {
+    method: "POST",
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      title,
+      noteId: noteId || null,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to create conversation");
   }
-
-  return "I'm your margin companion, here to help you explore English in context.\n\nYou can ask about words from your lexicon (try “linger”, “cultivate”, “deliberate”), request a quick fill-in-the-blank practice, or ask for a reflection on what you are currently reading.";
+  return (await res.json()) as { id: string; title: string };
 }
 
 export async function sendChatMessageApi(
   paramsOrId: string | ChatSendParams,
   maybeText?: string,
-  maybeHistory: ChatMessage[] = [],
+  _maybeHistory: ChatMessage[] = [],
+  onChunk?: (token: string) => void,
 ): Promise<ChatResponse> {
   const message =
     typeof paramsOrId === "string" ? maybeText || "" : paramsOrId.message;
   const conversationId =
-    typeof paramsOrId === "string" ? paramsOrId : (
-      paramsOrId.conversationId || "general"
-    );
-  const conversationHistory =
-    typeof paramsOrId === "string" ? maybeHistory : (
-      paramsOrId.conversationHistory || []
-    );
+    typeof paramsOrId === "string" ? paramsOrId : paramsOrId.conversationId;
 
-  // 1. Try Backend Chat API
-  try {
-    const res = await apiFetch(`${BASE_URL}/api/chat/send`, {
-      method: "POST",
-      body: JSON.stringify({
-        conversationId,
-        message,
-        history: conversationHistory,
-      }),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as ChatResponse;
-      if (data?.reply) return { reply: data.reply };
-    }
-  } catch {
-    // Backend API not yet available, fallback to local intelligent sample reply
+  // Call Backend Real Chat SSE endpoint
+  // apiFetch transparently refreshes an expired access token and retries once.
+  const res = await apiFetch(`${BASE_URL}/api/chat/send`, {
+    method: "POST",
+    skipAuthRedirect: true,
+    body: JSON.stringify({
+      conversationId:
+        conversationId && conversationId.length === 36 ? conversationId : null,
+      message,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Chat request failed: ${res.status} ${errText}`);
   }
 
-  // 2. Fallback to sample reply with natural reading pause
-  await new Promise((resolve) => setTimeout(resolve, 650));
-  return { reply: sampleReply(message) };
+  // Parse SSE Stream
+  const reader = res.body?.getReader();
+  if (!reader) {
+    return { reply: "Done" };
+  }
+
+  const decoder = new TextDecoder();
+  let fullReply = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data:")) {
+        const payload = trimmed.slice(5).trim();
+        if (payload === "[DONE]") continue;
+
+        try {
+          const parsed: any = JSON.parse(payload);
+          if (parsed && typeof parsed === "object") {
+            if (typeof parsed.text === "string") {
+              const normalizedText =
+                parsed.text.includes("Lỗi kết nối AI: null") ?
+                  "Không thể kết nối tới cổng AI (chưa cấu hình API key hoặc cổng 9Router cục bộ không hoạt động). Vui lòng mở AI Settings ở menu góc dưới bên trái để cấu hình."
+                : parsed.text;
+              fullReply += normalizedText;
+              onChunk?.(normalizedText);
+            } else if (parsed.fullContent) {
+              fullReply = parsed.fullContent;
+            }
+          } else if (typeof parsed === "string") {
+            fullReply += parsed;
+            onChunk?.(parsed);
+          }
+        } catch {
+          if (payload) {
+            fullReply += payload;
+            onChunk?.(payload);
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    reply:
+      fullReply ||
+      "I have processed your query and saved notes to your learning space.",
+  };
 }

@@ -60,6 +60,8 @@ export function Sidebar({
   onOpenSync,
   onOpenAuth,
   onLogout,
+  sidebarCollapsed = false,
+  onToggleCollapse,
 }: {
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
@@ -68,6 +70,8 @@ export function Sidebar({
   sidebarWidth: number;
   setSidebarWidth: (w: number | ((w: number) => number)) => void;
   setResizing: (r: boolean) => void;
+  sidebarCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   // Topics
   topics: TopicOffline[];
   notes: NoteOffline[];
@@ -88,7 +92,7 @@ export function Sidebar({
   // Profile
   accountOpen: boolean;
   setAccountOpen: (open: boolean) => void;
-  user: { name?: string; email?: string } | null;
+  user: UserDto | null;
   dueCount: number;
   dark: boolean;
   onToggleDark: () => void;
@@ -100,15 +104,8 @@ export function Sidebar({
   return (
     <>
       <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`}>
+        {/* Notion-style Header: Workspace logo on left, collapse button on right */}
         <div className="sidebar-tools">
-          <Button
-            className="icon-button"
-            aria-label="Close sidebar"
-            onClick={() => setMobileOpen(false)}
-          >
-            <PanelLeftClose size={19} />
-          </Button>
-
           <span
             className="sidebar-wordmark cursor-pointer"
             onClick={() => onNavigate("Notes")}
@@ -117,30 +114,51 @@ export function Sidebar({
           </span>
 
           <Button
-            className={`icon-button ${
-              currentView === "Chat" ? "chat-mode-active" : ""
+            className="icon-button"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            onClick={() => {
+              if (mobileOpen) {
+                setMobileOpen(false);
+              } else if (onToggleCollapse) {
+                onToggleCollapse();
+              } else {
+                setMobileOpen(false);
+              }
+            }}
+          >
+            <PanelLeftClose size={18} />
+          </Button>
+        </div>
+
+        {/* Notion-style Quick Actions */}
+        <div className="mb-4 flex flex-col gap-0.5">
+          <button
+            type="button"
+            className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors ${
+              currentView === "Chat" ?
+                "bg-[var(--hover)] font-semibold text-[var(--ink)]"
+              : "text-[var(--secondary)] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
             }`}
-            aria-label={
-              currentView === "Chat" ? "Back to notes" : "Open chatbot"
-            }
-            title={
-              currentView === "Chat" ? "Back to notes" : (
-                "Chat with learning companion"
-              )
-            }
             onClick={() =>
               onNavigate(currentView === "Chat" ? "Notes" : "Chat")
             }
           >
             {currentView === "Chat" ?
-              <BookOpenText size={19} />
-            : <MessageCircle size={19} />}
-          </Button>
+              <>
+                <BookOpenText size={16} />
+                <span>Back to notes</span>
+              </>
+            : <>
+                <MessageCircle size={16} />
+                <span>AI Companion</span>
+              </>
+            }
+          </button>
 
-          <Button
-            className="icon-button"
-            aria-label={currentView === "Chat" ? "New chat" : "Create note"}
-            title={currentView === "Chat" ? "New chat" : "Create note"}
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-[var(--secondary)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
             onClick={() => {
               if (currentView === "Chat") {
                 onNewChat();
@@ -149,8 +167,9 @@ export function Sidebar({
               }
             }}
           >
-            <SquarePen size={19} />
-          </Button>
+            <SquarePen size={16} />
+            <span>{currentView === "Chat" ? "New chat" : "New note"}</span>
+          </button>
         </div>
 
         {currentView === "Chat" ?

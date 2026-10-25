@@ -2,7 +2,7 @@
 
 import React, { useRef } from "react";
 
-import { BookOpen, Leaf, Sparkles } from "lucide-react";
+import { BookOpen, MessageSquare } from "lucide-react";
 
 import type { NoteOffline, PopoverSelection, WordWithContexts } from "~/types";
 
@@ -72,9 +72,11 @@ export function NoteReader({
         rect.bottom + 420 > window.innerHeight ?
           Math.max(70, rect.top - 390)
         : rect.bottom + 12,
-      stage: existing ? "translated" : "preview",
+      stage: "translated", // Direct input mode so fields show immediately
       meaning: existing?.meaning || existing?.translation || "",
       translation: existing?.contexts?.[0]?.translation || "",
+      ipa: existing?.ipa || "",
+      pos: existing?.contexts?.[0]?.partOfSpeech || "",
     });
   };
 
@@ -87,27 +89,61 @@ export function NoteReader({
         return (
           <span
             key={i}
-            className="saved-word"
-            title={matched.meaning || matched.translation}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              const sent =
-                note.content
-                  .split(/(?<=[.!?])\s+/)
-                  .find((s) => s.toLowerCase().includes(norm)) || piece;
-
-              onOpenSelection({
-                text: matched.text,
-                sentence: sent,
-                x: Math.max(16, Math.min(r.left, window.innerWidth - 354)),
-                y: Math.min(r.bottom + 10, window.innerHeight - 400),
-                stage: "translated",
-                meaning: matched.meaning || matched.translation,
-                translation: matched.contexts?.[0]?.translation || "",
-              });
-            }}
+            className="saved-word-wrap inline-flex items-center gap-1"
           >
-            {piece}
+            <span
+              className="saved-word"
+              title={matched.meaning || matched.translation}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const sent =
+                  note.content
+                    .split(/(?<=[.!?])\s+/)
+                    .find((s) => s.toLowerCase().includes(norm)) || piece;
+
+                onOpenSelection({
+                  text: matched.text,
+                  sentence: sent,
+                  x: Math.max(16, Math.min(r.left, window.innerWidth - 354)),
+                  y: Math.min(r.bottom + 10, window.innerHeight - 400),
+                  stage: "translated",
+                  meaning: matched.meaning || matched.translation,
+                  translation: matched.contexts?.[0]?.translation || "",
+                  ipa: matched.ipa || "",
+                  pos: matched.contexts?.[0]?.partOfSpeech || "",
+                });
+              }}
+            >
+              {piece}
+            </span>
+            <button
+              type="button"
+              className="comment-badge inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
+              title={`${matched.contexts?.length || 1} note(s)`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                const sent =
+                  note.content
+                    .split(/(?<=[.!?])\s+/)
+                    .find((s) => s.toLowerCase().includes(norm)) || piece;
+
+                onOpenSelection({
+                  text: matched.text,
+                  sentence: sent,
+                  x: Math.max(16, Math.min(r.left, window.innerWidth - 354)),
+                  y: Math.min(r.bottom + 10, window.innerHeight - 400),
+                  stage: "translated",
+                  meaning: matched.meaning || matched.translation,
+                  translation: matched.contexts?.[0]?.translation || "",
+                  ipa: matched.ipa || "",
+                  pos: matched.contexts?.[0]?.partOfSpeech || "",
+                });
+              }}
+            >
+              <MessageSquare size={12} />
+              <span>{matched.contexts?.length || 1}</span>
+            </button>
           </span>
         );
       }
@@ -119,11 +155,6 @@ export function NoteReader({
 
   return (
     <div className="note-content">
-      <div className="eyebrow">
-        <span className="tiny-square" /> PERSONAL NOTE{" "}
-        <span className="eyebrow-line" /> 01
-      </div>
-
       <Heading>{note.title}</Heading>
 
       <div className="note-meta">
@@ -145,17 +176,6 @@ export function NoteReader({
         </span>
       </div>
 
-      <div className="reading-tip">
-        <div className="tip-icon">
-          <Sparkles size={16} />
-        </div>
-        <p>
-          A word catches your eye?{" "}
-          <strong>Select it to explore its meaning</strong> and make it yours.
-        </p>
-        <span className="tip-key">Try it</span>
-      </div>
-
       <article
         ref={articleRef}
         className="article"
@@ -168,15 +188,8 @@ export function NoteReader({
         ))}
       </article>
 
-      <div className="article-end">
-        <span />
-        <Leaf size={17} />
-        <span />
-      </div>
-
       <div className="note-bottom">
         <span>{wordCount} words</span>
-        <span>A space to read, notice, and grow.</span>
       </div>
     </div>
   );

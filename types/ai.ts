@@ -1,19 +1,35 @@
-export type AiProvider = "DEEPSEEK" | "GOOGLE" | "deepseek" | "google";
+export type AiProvider =
+  | "9ROUTER"
+  | "DEEPSEEK"
+  | "GEMINI"
+  | "OPENAI"
+  | "ANTHROPIC"
+  | "9router"
+  | "deepseek"
+  | "google"
+  | "openai"
+  | "anthropic";
 
 export interface AiSettingsDto {
   provider: string;
   apiKey?: string;
+  hasApiKey?: boolean;
+  apiKeyHint?: string;
   modelName?: string;
+  customBaseUrl?: string;
+  baseUrl?: string;
   translationModel?: string;
   quizModel?: string;
-  baseUrl?: string;
+  chatModel?: string;
 }
 
 export interface AiSettings {
-  provider: "deepseek" | "google";
+  provider: "9router" | "deepseek" | "google" | "openai" | "anthropic";
   apiKey: string;
   translationModel: string;
   quizModel: string;
+  chatModel?: string;
+  customBaseUrl?: string;
 }
 
 export interface ModelInfo {
@@ -39,4 +55,5 @@ export interface GradeResult {
 export interface AiConnectionTestResult {
   success: boolean;
   message: string;
+  models?: ModelInfo[];
 }

@@ -32,7 +32,7 @@ interface KeySettingPageProps {
   onBack: () => void;
 }
 
-type Provider = "deepseek" | "google";
+type Provider = "9router" | "deepseek" | "google" | "openai" | "anthropic";
 
 export default function KeySettingPage({ onBack }: KeySettingPageProps) {
   const [provider, setProvider] = useState<Provider | null>(null);

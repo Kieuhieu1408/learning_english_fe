@@ -37,7 +37,7 @@ export function ProfileMenu({
 }: {
   accountOpen: boolean;
   setAccountOpen: (open: boolean) => void;
-  user: { name?: string; email?: string } | null;
+  user: UserDto | null;
   currentView: NavView;
   onNavigate: (view: NavView) => void;
   dueCount?: number;
@@ -94,7 +94,21 @@ export function ProfileMenu({
           className="account-menu"
           id="profile-submenu"
           aria-label="Profile and learning tools"
+          style={{ maxWidth: "260px", overflowX: "hidden" }}
         >
+          {user && (
+            <div className="mb-1 border-b border-[var(--border)] px-3 py-2">
+              <div className="truncate text-xs font-medium text-[var(--ink)]">
+                {user.name || user.username}
+              </div>
+              {user.email && (
+                <div className="truncate text-[11px] text-[var(--muted)]">
+                  {user.email}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="account-menu-label">YOUR LEARNING</div>
 
           {(
@@ -153,7 +167,7 @@ export function ProfileMenu({
 
           <div className="account-menu-divider" />
 
-          {user ?
+          {user && user.role !== "ROLE_GUEST" ?
             <Button
               onClick={() => {
                 onLogout();
@@ -161,17 +175,30 @@ export function ProfileMenu({
               }}
             >
               <LogOut size={15} />
-              Sign out ({user.email || user.name})
+              Sign out
             </Button>
-          : <Button
-              onClick={() => {
-                onOpenAuth();
-                setAccountOpen(false);
-              }}
-            >
-              <LogIn size={15} />
-              Sign in / Register
-            </Button>
+          : <>
+              <Button
+                onClick={() => {
+                  onOpenAuth();
+                  setAccountOpen(false);
+                }}
+              >
+                <LogIn size={15} />
+                Sign in / Register
+              </Button>
+              {user?.role === "ROLE_GUEST" && (
+                <Button
+                  onClick={() => {
+                    onLogout();
+                    setAccountOpen(false);
+                  }}
+                >
+                  <LogOut size={15} />
+                  Exit guest mode
+                </Button>
+              )}
+            </>
           }
         </div>
       )}

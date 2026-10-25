@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 
-import { GraduationCap, Lock, Mail, ShieldAlert, User } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 
-import { loginApi, registerApi } from "../services/login";
+import { loginApi, registerApi } from "../services/auth";
+import { Button, Input } from "./ui";
 
 interface AuthPageProps {
   onSuccess: () => void;
@@ -18,145 +19,174 @@ export default function AuthPage({ onSuccess }: AuthPageProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  console.log("[AuthPage] Rendered, mode:", mode);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[AuthPage] handleSubmit triggered. username:", username);
     setError("");
+
+    if (!username.trim()) {
+      setError("Please enter your username.");
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    if (mode === "register" && !email.trim()) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
-
-    const body =
-      mode === "login" ? { username, password } : { username, email, password };
-
     try {
-      const data =
-        mode === "login" ? await loginApi(body) : await registerApi(body);
-
-      console.log("[AuthPage] Authentication successful. Response data:", data);
-
-      localStorage.setItem("jwt_token", data.token);
-      localStorage.setItem("user_role", data.role);
-      localStorage.setItem("username", data.username);
-
-      console.log(
-        "[AuthPage] Stored token in localStorage:",
-        localStorage.getItem("jwt_token"),
-      );
-
+      if (mode === "login") {
+        await loginApi({ username: username.trim(), password });
+      } else {
+        await registerApi({
+          username: username.trim(),
+          email: email.trim(),
+          password,
+        });
+      }
+      localStorage.removeItem("margin_guest_mode");
       onSuccess();
     } catch (err: any) {
       setError(
         err.message ||
-          "Connection to server refused. Make sure backend is running.",
+          "Authentication failed. Please check your credentials or connection.",
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleContinueAsGuest = () => {
+    localStorage.setItem("margin_guest_mode", "true");
+    localStorage.setItem("username", "Guest Reader");
+    onSuccess();
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-        {/* Title */}
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-400">
-            <GraduationCap className="h-6 w-6" />
+    <div className="flex min-h-screen items-center justify-center bg-[var(--paper)] p-4 selection:bg-[var(--iris-soft)] selection:text-[var(--iris)]">
+      <div className="w-full max-w-[420px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
+        <div className="mb-6 text-center">
+          <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--subtle)] text-[var(--iris)]">
+            <BookOpen size={20} />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-wide text-white">
-            {mode === "login" ? "Welcome Back" : "Create Account"}
+          <h1 className="font-serif text-3xl font-medium tracking-tight text-[var(--ink)]">
+            margin.
           </h1>
-          <p className="text-xs text-slate-500">
-            {mode === "login" ?
-              "Sign in to access your offline-first English cards"
-            : "Start mastering vocabulary spaced repetition"}
+          <p className="modal-description mt-2 text-xs leading-relaxed text-[var(--muted)]">
+            A quiet space for thoughtful English reading, vocabulary capture,
+            and spaced repetition review.
           </p>
         </div>
 
+        <div className="mode-switch mb-5">
+          <Button
+            type="button"
+            className={mode === "login" ? "chosen" : ""}
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+          >
+            Sign in
+          </Button>
+          <Button
+            type="button"
+            className={mode === "register" ? "chosen" : ""}
+            onClick={() => {
+              setMode("register");
+              setError("");
+            }}
+          >
+            Sign up
+          </Button>
+        </div>
+
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400">
-            <ShieldAlert className="h-4 w-4 flex-shrink-0" />
-            <span>{error}</span>
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-red-200 bg-red-50/50 p-3 text-xs leading-normal text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+          >
+            {error}
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-[var(--secondary)]">
               Username
             </label>
-            <div className="relative">
-              <User className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Type your username..."
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
-                required
-              />
-            </div>
+            <Input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. learner"
+              autoComplete="username"
+              required
+              disabled={loading}
+            />
           </div>
 
           {mode === "register" && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                Email Address
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--secondary)]">
+                Email address
               </label>
-              <div className="relative">
-                <Mail className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
-                  required
-                />
-              </div>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="learner@example.com"
+                autoComplete="email"
+                required
+                disabled={loading}
+              />
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-[var(--secondary)]">
               Password
             </label>
-            <div className="relative">
-              <Lock className="absolute top-3 left-3 h-4 w-4 text-slate-500" />
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-slate-850 w-full rounded-xl border bg-slate-950 py-2.5 pr-4 pl-10 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
-                required
-              />
-            </div>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete={
+                mode === "login" ? "current-password" : "new-password"
+              }
+              required
+              disabled={loading}
+            />
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/10 transition-colors hover:bg-indigo-500 disabled:bg-indigo-800"
+            className="primary full mt-2"
+            disabled={loading || !username.trim() || !password}
           >
             {loading ?
-              "Processing..."
+              mode === "login" ?
+                "Signing in…"
+              : "Creating account…"
             : mode === "login" ?
-              "Sign In"
-            : "Sign Up"}
-          </button>
+              "Sign in"
+            : "Create account"}
+          </Button>
         </form>
 
-        {/* Toggle */}
-        <div className="pt-2 text-center">
+        <div className="mt-6 border-t border-[var(--border)] pt-5 text-center">
           <button
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
+            type="button"
+            onClick={handleContinueAsGuest}
+            className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-[var(--muted)] transition-colors hover:text-[var(--iris)]"
           >
-            {mode === "login" ?
-              "Don't have an account? Sign up"
-            : "Already have an account? Sign in"}
+            <span>Continue offline without account</span>
+            <ArrowRight size={13} />
           </button>
         </div>
       </div>

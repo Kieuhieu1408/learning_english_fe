@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import { BookOpen, RotateCcw, Volume2 } from "lucide-react";
 
@@ -19,13 +19,41 @@ export function FlashcardCard({
   setFlipped: React.Dispatch<React.SetStateAction<boolean>>;
   onGrade: (ok: boolean) => void;
 }) {
-  const speak = (text: string) => {
+  const [speakingTarget, setSpeakingTarget] = useState<
+    "word" | "sentence" | null
+  >(null);
+
+  const speak = (text: string, target?: "word" | "sentence") => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
+      if (target) {
+        setSpeakingTarget(target);
+        utterance.onend = () => setSpeakingTarget(null);
+        utterance.onerror = () => setSpeakingTarget(null);
+      }
       window.speechSynthesis.speak(utterance);
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeakingTarget(null);
+  }, [card.id, flipped]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const primaryContext = card.contexts?.[0];
+  const primarySentence = primaryContext?.sentence || card.exampleContext;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,13 +73,19 @@ export function FlashcardCard({
         e.preventDefault();
         onGrade(true);
       }
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        speak(card.text, "word");
+      }
+      if ((e.key === "s" || e.key === "S") && flipped && primarySentence) {
+        e.preventDefault();
+        speak(primarySentence, "sentence");
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [flipped, onGrade, setFlipped]);
-
-  const primaryContext = card.contexts?.[0];
+  }, [flipped, onGrade, setFlipped, card.text, primarySentence]);
 
   return (
     <>
@@ -75,11 +109,12 @@ export function FlashcardCard({
         <div className="card-top">
           <span>{flipped ? "THE MEANING" : "TAKE A MOMENT TO REMEMBER"}</span>
           <Button
-            className="icon-button"
+            className={`icon-button ${speakingTarget === "word" ? "playing" : ""}`}
             aria-label="Play pronunciation"
+            title="Pronounce word (R)"
             onClick={(e) => {
               e.stopPropagation();
-              speak(card.text);
+              speak(card.text, "word");
             }}
           >
             <Volume2 size={19} />
@@ -95,14 +130,29 @@ export function FlashcardCard({
           </Heading>
           <span className="ipa">{flipped ? card.text : card.ipa || ""}</span>
 
-          {flipped && primaryContext && (
+          {flipped && primarySentence && (
             <div className="flash-context">
-              <p>“{primaryContext.sentence}”</p>
-              <small>
-                <BookOpen size={12} />
-                {primaryContext.noteTitle || "Note"} · {card.contexts.length}{" "}
-                context(s)
-              </small>
+              <div className="flash-sentence-wrapper">
+                <p>“{primarySentence}”</p>
+                <Button
+                  className={`icon-button flash-sentence-speak ${speakingTarget === "sentence" ? "playing" : ""}`}
+                  aria-label="Listen to example sentence"
+                  title="Listen to example sentence (S)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speak(primarySentence, "sentence");
+                  }}
+                >
+                  <Volume2 size={16} />
+                </Button>
+              </div>
+              {primaryContext && (
+                <small>
+                  <BookOpen size={12} />
+                  {primaryContext.noteTitle || "Note"} ·{" "}
+                  {card.contexts?.length || 1} context(s)
+                </small>
+              )}
             </div>
           )}
         </div>

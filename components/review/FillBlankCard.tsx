@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Volume2 } from "lucide-react";
 
 import type { ReviewCard } from "~/types";
 
@@ -18,9 +18,31 @@ export function FillBlankCard({
 }) {
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speak = (text: string) => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [card.id]);
 
   const sentence =
     card.contexts?.[0]?.sentence ||
+    card.exampleContext ||
     `This is a sentence containing ${card.text}.`;
   // Replace word with blank
   const regex = new RegExp(`\\b${card.text}\\b`, "ig");
@@ -83,14 +105,28 @@ export function FillBlankCard({
         />
 
         {feedback && (
-          <p
-            className={
-              feedback.startsWith("Correct") ? "feedback success" : "feedback"
-            }
-            role="status"
-          >
-            {feedback}
-          </p>
+          <div className="space-y-2">
+            <p
+              className={
+                feedback.startsWith("Correct") ? "feedback success" : "feedback"
+              }
+              role="status"
+            >
+              {feedback}
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-[var(--secondary)] italic">
+              <span>“{sentence}”</span>
+              <Button
+                type="button"
+                className={`icon-button ${isSpeaking ? "playing text-[var(--iris)]" : ""}`}
+                aria-label="Listen to example sentence"
+                title="Listen to sentence"
+                onClick={() => speak(sentence)}
+              >
+                <Volume2 size={15} />
+              </Button>
+            </div>
+          </div>
         )}
 
         <Button className="primary full" disabled={!answer.trim() && !feedback}>

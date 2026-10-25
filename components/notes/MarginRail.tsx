@@ -2,59 +2,112 @@
 
 import React from "react";
 
-import { ArrowRight, ArrowUpRight, BookOpen } from "lucide-react";
+import { ArrowUpRight, BookOpen, Volume2 } from "lucide-react";
+
+import type { CSSProperties } from "react";
 
 import type { WordWithContexts } from "~/types";
 
 import { Button } from "~/components/ui";
 
 export function MarginRail({
-  noteWords,
-  onNavigateVocab,
+  railRef,
+  orderedWords,
+  positions,
+  selectedWordId,
+  railHeight,
   onSelectWord,
+  onNavigateVocab,
+  onSpeak,
 }: {
-  noteWords: WordWithContexts[];
+  railRef: React.RefObject<HTMLElement | null>;
+  orderedWords: WordWithContexts[];
+  positions: { id: string; top: number; height: number }[];
+  selectedWordId: string | null;
+  railHeight: number;
+  onSelectWord: (wordId: string) => void;
   onNavigateVocab: () => void;
-  onSelectWord?: (wordId: string) => void;
+  onSpeak: (text: string) => void;
 }) {
+  if (!orderedWords.length) return null;
+
   return (
-    <aside className="margin-rail">
-      <div className="rail-label">
-        <BookOpen size={15} /> IN THIS NOTE <span>{noteWords.length}</span>
-      </div>
-      <p>
-        Little discoveries,
-        <br />
-        worth keeping.
-      </p>
+    <aside
+      ref={railRef as any}
+      className="word-notes word-notes-inline"
+      aria-label="Vocabulary in this note"
+      style={{ "--word-notes-height": `${railHeight}px` } as CSSProperties}
+    >
+      {orderedWords.map((word) => {
+        const isSelected = selectedWordId === word.id;
+        const position = positions.find((item) => item.id === word.id);
+        const meaning = word.meaning || word.translation || "";
+        const pos =
+          word.partOfSpeech ||
+          word.pos ||
+          word.contexts?.[0]?.partOfSpeech ||
+          "";
 
-      {noteWords.slice(0, 5).map((w) => (
-        <Button
-          className="margin-word"
-          key={w.id}
-          onClick={() => {
-            if (onSelectWord) onSelectWord(w.id);
-            onNavigateVocab();
-          }}
-        >
-          <span>
-            {w.text}
-            <ArrowUpRight size={12} />
-          </span>
-          <small>{(w.meaning || w.translation || "").split(",")[0]}</small>
-        </Button>
-      ))}
+        return (
+          <div
+            key={word.id}
+            data-note-id={word.id}
+            className={`word-note ${isSelected ? "word-note-selected" : ""}`}
+            style={
+              {
+                "--annotation-top": `${position?.top || 0}px`,
+                visibility:
+                  !position && positions.length ? "hidden" : undefined,
+              } as CSSProperties
+            }
+          >
+            <button
+              type="button"
+              className="word-note-summary"
+              aria-expanded={isSelected}
+              onClick={() => onSelectWord(word.id)}
+            >
+              <div className="word-note-summary-header">
+                <strong className="word-note-text">{word.text}</strong>
+                {word.ipa && <span className="word-note-ipa">{word.ipa}</span>}
+              </div>
+              <span className="word-note-meaning">{meaning}</span>
+            </button>
 
-      <Button className="all-words" onClick={onNavigateVocab}>
-        View vocabulary <ArrowRight size={13} />
-      </Button>
-
-      <div className="rail-quote">
-        “Attention is the beginning
-        <br />
-        of devotion.”
-        <small>— Mary Oliver</small>
-      </div>
+            {isSelected && (
+              <div className="word-note-detail">
+                <div className="word-note-pronunciation">
+                  <span>{pos || "word"}</span>
+                  <Button
+                    className="icon-button"
+                    aria-label={`Listen to ${word.text}`}
+                    title="Pronounce"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSpeak(word.text);
+                    }}
+                  >
+                    <Volume2 size={13} />
+                  </Button>
+                </div>
+                <div className="word-note-actions">
+                  <Button
+                    className="quiet"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateVocab();
+                    }}
+                  >
+                    <BookOpen size={12} />
+                    Vocabulary
+                    <ArrowUpRight size={11} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </aside>
   );
 }

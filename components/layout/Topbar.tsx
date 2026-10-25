@@ -9,6 +9,7 @@ import {
   Flame,
   Menu,
   Moon,
+  PanelLeftOpen,
   RefreshCw,
   Sun,
 } from "lucide-react";
@@ -28,6 +29,8 @@ export function Topbar({
   onTriggerSync,
   dark,
   onToggleDark,
+  sidebarCollapsed = false,
+  onToggleSidebar,
 }: {
   currentView: NavView;
   topicName?: string;
@@ -39,9 +42,22 @@ export function Topbar({
   onTriggerSync?: () => void;
   dark: boolean;
   onToggleDark: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }) {
   return (
     <header className="topbar">
+      {sidebarCollapsed && (
+        <Button
+          className="icon-button desktop-sidebar-toggle"
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
+          onClick={onToggleSidebar}
+        >
+          <PanelLeftOpen size={19} />
+        </Button>
+      )}
+
       <Button
         className="icon-button mobile-menu"
         aria-label="Toggle sidebar"

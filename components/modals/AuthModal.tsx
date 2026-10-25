@@ -29,8 +29,8 @@ export function AuthModal({
     e.preventDefault();
     setError("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!password) {
+      setError("Please enter your password.");
       return;
     }
 
@@ -38,6 +38,7 @@ export function AuthModal({
     try {
       if (tab === "Sign in") {
         const res = await loginApi({ username: username.trim(), password });
+        localStorage.removeItem("margin_guest_mode");
         onSuccess(res.user);
       } else {
         const res = await registerApi({
@@ -45,6 +46,7 @@ export function AuthModal({
           email: email.trim(),
           password,
         });
+        localStorage.removeItem("margin_guest_mode");
         onSuccess(res.user);
       }
       onClose();

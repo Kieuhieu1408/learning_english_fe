@@ -183,7 +183,17 @@ export function VocabularyPage({
 
                   {w.contexts.map((c) => (
                     <div className="context" key={c.id}>
-                      <p>“{c.sentence}”</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="flex-1">“{c.sentence}”</p>
+                        <Button
+                          aria-label="Listen to example sentence"
+                          title="Listen to sentence"
+                          className="icon-button"
+                          onClick={() => speak(c.sentence)}
+                        >
+                          <Volume2 size={14} />
+                        </Button>
+                      </div>
                       {c.translation && <small>{c.translation}</small>}
                       {c.noteTitle && (
                         <div className="mt-1 text-[11px] text-[var(--muted)]">

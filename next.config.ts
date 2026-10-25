@@ -9,6 +9,7 @@ import "./lib/env";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   cacheComponents: true,
+  partialPrefetching: true,
   reactCompiler: true,
   // ...
 };

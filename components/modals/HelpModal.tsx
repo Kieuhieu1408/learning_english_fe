@@ -34,15 +34,23 @@ export function HelpModal({
             <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs">
               Space
             </kbd>{" "}
-            to flip the card. Then press{" "}
+            to flip the card,{" "}
             <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs">
               1
             </kbd>{" "}
-            for Still learning or{" "}
+            for Still learning, or{" "}
             <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs">
               2
             </kbd>{" "}
-            for Remembered.
+            for Remembered. Press{" "}
+            <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs">
+              R
+            </kbd>{" "}
+            to hear the word, or{" "}
+            <kbd className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono text-xs">
+              S
+            </kbd>{" "}
+            to listen to the sample sentence.
           </span>
         </div>
 

@@ -102,7 +102,20 @@ export default function NotionEditor({
     setAiError(null);
 
     try {
-      const result = await translateWord(selectedText);
+      const textarea = editorRef.current;
+      let sentence = "";
+      if (textarea) {
+        const full = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const prevPeriod = full.lastIndexOf(".", Math.max(0, start - 1));
+        const sentenceStart = prevPeriod !== -1 ? prevPeriod + 1 : 0;
+        const nextPeriod = full.indexOf(".", end);
+        const sentenceEnd = nextPeriod !== -1 ? nextPeriod + 1 : full.length;
+        sentence = full.substring(sentenceStart, sentenceEnd).trim();
+      }
+
+      const result = await translateWord(selectedText, sentence);
 
       setAiResult(result);
 

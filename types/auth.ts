@@ -24,6 +24,20 @@ export interface RegisterRequest {
   name?: string;
 }
 
+/** Raw response of /api/auth/login, /register and /refresh. */
+export interface TokenResponse {
+  accessToken?: string;
+  token?: string;
+  refreshToken?: string;
+  tokenType?: string;
+  expiresIn?: number;
+  role?: string;
+  username?: string;
+  name?: string;
+  email?: string;
+  user?: UserDto;
+}
+
 export interface ServerAuthResponse {
   token?: string;
   role?: string;

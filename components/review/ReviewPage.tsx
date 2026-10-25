@@ -92,14 +92,6 @@ export function ReviewPage({
 
   return (
     <section className="review-page">
-      <div className="review-heading">
-        <span className="page-eyebrow">A LITTLE PRACTICE GOES A LONG WAY</span>
-        <Heading>Make it second nature.</Heading>
-        <p className="page-description">
-          Come back to your words. Let them stay with you.
-        </p>
-      </div>
-
       {loading ?
         <div className="py-12 text-center text-[var(--muted)]">
           Preparing your review cards…

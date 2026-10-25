@@ -65,23 +65,71 @@ export function ChatWorkspace({
 
     try {
       const history = currentThread?.messages || [];
-      const reply = await sendChatMessageApi({
-        message: text,
-        conversationHistory: history,
-      });
+      let streamed = "";
+      let hasAddedAssistant = false;
+
+      const reply = await sendChatMessageApi(
+        {
+          conversationId: targetId,
+          message: text,
+          conversationHistory: history,
+        },
+        undefined,
+        undefined,
+        (token) => {
+          streamed += token;
+          if (!hasAddedAssistant) {
+            hasAddedAssistant = true;
+            setChats((prev) =>
+              prev.map((c) =>
+                c.id === targetId ?
+                  {
+                    ...c,
+                    messages: [
+                      ...c.messages,
+                      { role: "assistant", text: streamed },
+                    ],
+                  }
+                : c,
+              ),
+            );
+          } else {
+            setChats((prev) =>
+              prev.map((c) => {
+                if (c.id !== targetId) return c;
+                const updated = [...c.messages];
+                const lastMsg = updated[updated.length - 1];
+                if (lastMsg && lastMsg.role === "assistant") {
+                  updated[updated.length - 1] = {
+                    role: "assistant",
+                    text: streamed,
+                  };
+                }
+                return { ...c, messages: updated };
+              }),
+            );
+          }
+        },
+      );
 
       setChats((prev) =>
-        prev.map((c) =>
-          c.id === targetId ?
-            {
-              ...c,
-              messages: [
-                ...c.messages,
-                { role: "assistant", text: reply.reply },
-              ],
-            }
-          : c,
-        ),
+        prev.map((c) => {
+          if (c.id !== targetId) return c;
+          const updated = [...c.messages];
+          const finalText = reply.reply || streamed;
+          const lastMsg = updated[updated.length - 1];
+          if (hasAddedAssistant && lastMsg && lastMsg.role === "assistant") {
+            updated[updated.length - 1] = {
+              role: "assistant",
+              text: finalText,
+            };
+            return { ...c, messages: updated };
+          }
+          return {
+            ...c,
+            messages: [...c.messages, { role: "assistant", text: finalText }],
+          };
+        }),
       );
     } catch {
       setChats((prev) =>
@@ -134,12 +182,14 @@ export function ChatWorkspace({
               </div>
             ))}
 
-            {isPending && (
-              <div className="chat-pending" role="status">
-                <Sparkles size={16} />
-                Thinking and preparing a response…
-              </div>
-            )}
+            {isPending &&
+              activeChat.messages[activeChat.messages.length - 1]?.role !==
+                "assistant" && (
+                <div className="chat-pending" role="status">
+                  <Sparkles size={16} />
+                  Thinking and preparing a response…
+                </div>
+              )}
             <div ref={endRef} />
           </div>
         : <div className="chat-welcome">

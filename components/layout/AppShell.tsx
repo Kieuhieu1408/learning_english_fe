@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import type { CSSProperties } from "react";
 
@@ -29,12 +30,13 @@ import { ReviewPage } from "~/components/review/ReviewPage";
 import { Toast } from "~/components/ui";
 import { VocabularyPage } from "~/components/vocabulary/VocabularyPage";
 import { db } from "~/lib/db";
-import { ensureSeedData } from "~/lib/demoData";
+import { cleanLegacyMockData } from "~/lib/demoData";
 import { triggerBatchSync } from "~/lib/syncManager";
 import { getMeApi, logoutApi } from "~/services/auth";
+import { fetchConversationsApi } from "~/services/chat";
 import { deleteNoteApi, fetchNotesApi, upsertNoteApi } from "~/services/notes";
 import { fetchProgressDashboardApi } from "~/services/progress";
-import { fetchDueCardsApi } from "~/services/review";
+import { fetchDueCardsWithTotalApi } from "~/services/review";
 import {
   createTopicApi,
   deleteTopicApi,
@@ -46,37 +48,17 @@ import { captureWordContext, fetchWordsWithContexts } from "~/services/words";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
-const initialChatsData: ChatThread[] = [
-  {
-    id: "attention",
-    title: "Understanding “linger”",
-    messages: [
-      { role: "user", text: "What does linger mean?" },
-      {
-        role: "assistant",
-        text: "Linger /ˈlɪŋ.ɡər/ · verb\n\nNán lại, lưu lại — to stay somewhere longer than expected because you don’t want to leave.\n\nExample: “We lingered over coffee on a quiet Sunday.”\nChúng tôi nán lại bên tách cà phê vào một ngày Chủ nhật yên tĩnh.\n\nTry writing one sentence about a place you’d like to linger.",
-      },
-    ],
-  },
-  {
-    id: "practice",
-    title: "A small vocabulary practice",
-    messages: [
-      { role: "user", text: "Give me a vocabulary exercise." },
-      {
-        role: "assistant",
-        text: "Let’s practice a word in context.\n\n“She likes to ______ her curiosity by reading something new every day.”\n\nHint: nuôi dưỡng, trau dồi. The word starts with c.\n\nSample answer: cultivate.",
-      },
-    ],
-  },
-];
+const initialChatsData: ChatThread[] = [];
 
 export function AppShell() {
+  const router = useRouter();
+
   // Theme & layout state
   const [dark, setDark] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(244);
   const [resizing, setResizing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   // Navigation
@@ -89,7 +71,7 @@ export function AppShell() {
   const [savedWords, setSavedWords] = useState<WordWithContexts[]>([]);
   const [collapsedTopics, setCollapsedTopics] = useState<string[]>([]);
   const [dueCount, setDueCount] = useState(0);
-  const [streakDays, setStreakDays] = useState(4);
+  const [streakDays, setStreakDays] = useState(0);
   const [syncStatus, setSyncStatus] = useState<
     "synced" | "offline" | "syncing" | "pending"
   >("synced");
@@ -147,6 +129,42 @@ export function AppShell() {
     }
   }, []);
 
+  // Responsive sidebar: 14-inch laptop screens (<= 1440px) collapse sidebar by default, large screens show both
+  useEffect(() => {
+    let lastWidth = window.innerWidth;
+    // Initial mount check for 14-inch screen
+    if (window.innerWidth <= 1440) {
+      setSidebarCollapsed(true);
+    } else {
+      setSidebarCollapsed(false);
+    }
+
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      const wasAbove = lastWidth > 1440;
+      const isAbove = currentWidth > 1440;
+
+      if (wasAbove !== isAbove) {
+        setSidebarCollapsed(!isAbove);
+      }
+      lastWidth = currentWidth;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
+        e.preventDefault();
+        setSidebarCollapsed((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handleToggleDark = () => {
     const next = !dark;
     setDark(next);
@@ -158,26 +176,45 @@ export function AppShell() {
     }
   };
 
+  // Automatically dismiss floating WordPopover when navigating away or switching notes
+  useEffect(() => {
+    setSelection(null);
+  }, [currentView, activeNoteId]);
+
   // Reload all offline data
+  // Reload all real data from backend/offline storage
   const loadData = useCallback(async () => {
     try {
-      await ensureSeedData();
+      await cleanLegacyMockData();
 
-      const [loadedTopics, loadedNotes, wordsWithContexts, dueCards, prog] =
-        await Promise.all([
-          fetchTopicsApi(),
-          fetchNotesApi(),
-          fetchWordsWithContexts(),
-          fetchDueCardsApi(15).catch(() => []),
-          fetchProgressDashboardApi().catch(() => null),
-        ]);
+      const [
+        loadedTopics,
+        loadedNotes,
+        wordsWithContexts,
+        dueSummary,
+        prog,
+        convs,
+      ] = await Promise.all([
+        fetchTopicsApi(),
+        fetchNotesApi(),
+        fetchWordsWithContexts(),
+        fetchDueCardsWithTotalApi(15).catch(() => ({ cards: [], totalDue: 0 })),
+        fetchProgressDashboardApi().catch(() => null),
+        fetchConversationsApi().catch(() => []),
+      ]);
 
       setTopics(loadedTopics);
       setNotes(loadedNotes);
       setSavedWords(wordsWithContexts);
-      setDueCount(dueCards.length);
+      setDueCount(dueSummary.totalDue);
       if (prog) {
         setStreakDays(prog.streakDays);
+      }
+      if (Array.isArray(convs) && convs.length > 0) {
+        setChats(convs);
+        if (!activeChatId && convs[0]) {
+          setActiveChatId(convs[0].id);
+        }
       }
 
       // Default active note if not set
@@ -187,16 +224,46 @@ export function AppShell() {
     } catch (err) {
       console.error("Failed to load initial data:", err);
     }
-  }, [activeNoteId]);
+  }, [activeNoteId, activeChatId]);
 
-  // Initial mount
+  // Initial mount: load real data & profile
   useEffect(() => {
-    loadData();
+    const initAuthAndData = async () => {
+      await loadData();
 
-    // Check user authentication
-    getMeApi()
-      .then((me) => setUser(me))
-      .catch(() => setUser(null));
+      try {
+        const me = await getMeApi();
+        if (me) {
+          setUser(me);
+        } else if (
+          typeof window !== "undefined" &&
+          localStorage.getItem("margin_guest_mode") === "true"
+        ) {
+          setUser({
+            username: "guest",
+            name: "Guest Reader",
+            role: "ROLE_GUEST",
+          });
+        } else {
+          setUser(null);
+        }
+      } catch {
+        if (
+          typeof window !== "undefined" &&
+          localStorage.getItem("margin_guest_mode") === "true"
+        ) {
+          setUser({
+            username: "guest",
+            name: "Guest Reader",
+            role: "ROLE_GUEST",
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    };
+
+    initAuthAndData();
 
     // Online/Offline detection
     const handleOnline = () => setSyncStatus("synced");
@@ -312,12 +379,18 @@ export function AppShell() {
     <div
       className={`app ${dark ? "dark" : ""} ${
         resizing ? "sidebar-resizing" : ""
-      }`}
-      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+      } ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      style={
+        {
+          "--sidebar-width": `${sidebarCollapsed ? 0 : sidebarWidth}px`,
+        } as CSSProperties
+      }
     >
       <Sidebar
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         currentView={currentView}
         onNavigate={setCurrentView}
         sidebarWidth={sidebarWidth}
@@ -374,8 +447,12 @@ export function AppShell() {
         onOpenAuth={() => setAuthModalOpen(true)}
         onLogout={async () => {
           await logoutApi();
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("margin_guest_mode");
+          }
           setUser(null);
           showToast("Signed out");
+          router.replace("/login");
         }}
       />
 
@@ -386,6 +463,8 @@ export function AppShell() {
           noteTitle={activeNote?.title}
           mobileOpen={mobileOpen}
           setMobileOpen={setMobileOpen}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           streakDays={streakDays}
           syncStatus={syncStatus}
           onTriggerSync={handleTriggerSync}
@@ -449,16 +528,10 @@ export function AppShell() {
         {currentView === "Progress" && (
           <ProgressPage onNavigateReview={() => setCurrentView("Review")} />
         )}
-
-        <footer className="app-footer">
-          <span>margin.</span>
-          <span>Thoughtful english reading and vocabulary notes</span>
-          <span>Offline-first</span>
-        </footer>
       </main>
 
       {/* Floating Word Selection Popover */}
-      {selection && (
+      {currentView === "Notes" && selection && (
         <WordPopover
           selection={selection}
           setSelection={setSelection}

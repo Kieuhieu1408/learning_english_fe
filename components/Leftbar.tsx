@@ -30,6 +30,7 @@ import type { ThemeOption } from "../services/user";
 
 import { db } from "../lib/db";
 import { queueLocalChange } from "../lib/syncManager";
+import { logoutApi } from "../services/auth";
 import { saveAppConfig } from "../services/user";
 
 interface LeftbarProps {
@@ -107,9 +108,7 @@ export default function Leftbar({
     } catch (err) {
       console.error("Failed to clear local database on logout:", err);
     }
-    localStorage.removeItem("jwt_token");
-    localStorage.removeItem("user_role");
-    localStorage.removeItem("username");
+    await logoutApi();
     window.location.reload();
   };
 

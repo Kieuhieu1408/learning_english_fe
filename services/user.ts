@@ -62,6 +62,21 @@ export async function testDeepSeekKey(apiKey: string): Promise<ModelInfo[]> {
   }));
 }
 
+export async function test9RouterKey(
+  customBaseUrl?: string,
+): Promise<ModelInfo[]> {
+  const url =
+    (customBaseUrl || "http://localhost:20128/v1").replace(/\/$/, "") +
+    "/models";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Could not reach 9Router gateway at " + url);
+  const data = (await res.json()) as { data?: Array<{ id: string }> };
+  return (data.data || []).map((m) => ({
+    id: m.id,
+    name: m.id,
+  }));
+}
+
 export async function testGeminiKey(apiKey: string): Promise<ModelInfo[]> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
